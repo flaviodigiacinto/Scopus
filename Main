@@ -102,7 +102,7 @@ def Researchers_metrics(df_art,df):
     df.to_excel('Metriche_ricercatori.xlsx', sheet_name='Sheet1', index=False)  
 
 # WARNING: modify the following path to get the Ricercatori.xlsx file from your path
-path="C:/Users/LCM/Downloads/Ricercatori.xlsx"
+path="Ricercatori.xlsx"
 
 # Read the CSV file from a URL into a DataFrame
 df = pd.read_excel(path,dtype={"Scopus_ID1": str,"Scopus_ID2": str,"Scopus_ID3": str,"Scopus_ID4": str})
