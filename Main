@@ -7,8 +7,10 @@ Created on Fri Jan 27 11:08:02 2023
 from datetime import datetime, timedelta
 import pandas as pd
 from pybliometrics.scopus import AuthorRetrieval
-import requests
-import io
+from docx import Document
+from pybliometrics.scopus import AbstractRetrieval
+from docx2pdf import convert
+
 
 def Article_xlsx(df_art):
     df_art['DOI']=df_art['DOI'].fillna('')
@@ -24,7 +26,7 @@ def Article_xlsx(df_art):
    
     # WARNING: modify the following path to save the file outside your working dir
     result.to_excel('Articoli.xlsx', sheet_name='Sheet1', index=False)
-    return()
+    return(result)
 
 def Researchers_metrics(df_art,df):
     # df = pd.read_excel(path,dtype={"Scopus_ID1": str,"Scopus_ID2": str,"Scopus_ID3": str,"Scopus_ID4": str})
@@ -101,8 +103,87 @@ def Researchers_metrics(df_art,df):
     # WARNING: modify the following path to save the file outside your working dir
     df.to_excel('Metriche_ricercatori.xlsx', sheet_name='Sheet1', index=False)  
 
+def Genera_Report(path_recent,Artdf,pathn,path_save):       
+    df_res=Researchers_list(pathn)
+    df = pd.read_excel(path_recent+'Articoli_recenti.xlsx')
+    today = datetime.today().date()
+    recent=today-timedelta(days=90)
+    df_filtered=df[(df['Date'].dt.date >= recent)]
+    df_filtered2=Artdf[(Artdf['Date'].dt.date>=recent)]
+    df_filtered2.to_excel(path_recent+'Articoli_recentiNew.xlsx', sheet_name='Sheet1', index=False)
+    merged_df = pd.merge(df_filtered2, df_filtered[['Articoli']], on='Articoli', how='left', indicator=True)
+    result_df = merged_df[merged_df['_merge'] == 'left_only'].drop(columns='_merge')
+    
+    document = Document()
+    TestName='Articoli UCSC Recenti'
+    title=document.add_paragraph()
+    title.add_run(TestName).bold=True
+    
+    document.add_paragraph()
+    
+    for index, row in result_df.iterrows():
+        DOIn=row['DOI']
+        title=row['Articoli']        
+        ab = AbstractRetrieval(DOIn, view='FULL')
+        Journal=ab.publicationName
+        text='  - '+ title+', '
+        paragraph = document.add_paragraph()
+        paragraph.add_run(text)
+        bold_run = paragraph.add_run((Journal))
+        bold_run.bold = True
+        #' DOI:'+row['DOI']
+        for Auth in ab.authors:
+            if (df_res['Scopus_ID'].eq(str(Auth[0]))).any():
+                paragraph.add_run(', ')
+                underlined_run = paragraph.add_run((Auth[1]))
+                underlined_run.underline = True
+            else:
+                paragraph.add_run(', '+str(Auth[1]))
+               
+        paragraph.add_run(', '+DOIn)  
+        document.add_paragraph()     
+    
+    document.save(path_save+'.docx') 
+    convert(path_save+'.docx', path_save+".pdf")
+    
+def Researchers_list(pathn):
+    df = pd.read_excel(path,dtype={"Scopus_ID1": str,"Scopus_ID2": str,"Scopus_ID3": str,"Scopus_ID4": str})
+    df1=df.copy()
+    df2=df.copy()
+    df3=df.copy()
+    df4=df.copy()
+    
+    df_p=df.copy()
+    df_p = df_p.drop(columns=['Qualifica', 'Codice Nuovo Ssd',
+           'Descrizione Nuovo Ssd'])
+    
+    df1=df_p.copy()
+    df2=df_p.copy()
+    df3=df_p.copy()
+    df4=df_p.copy()
+    
+    df1 = df1.drop(columns=['Scopus_ID2','Scopus_ID3','Scopus_ID4'])
+    df1 = df1.rename(columns={'Scopus_ID1': 'Scopus_ID'})
+    df2 = df2.drop(columns=['Scopus_ID1','Scopus_ID3','Scopus_ID4'])
+    df2 = df2.rename(columns={'Scopus_ID2': 'Scopus_ID'})
+    df3 = df3.drop(columns=['Scopus_ID2','Scopus_ID1','Scopus_ID4'])
+    df3 = df3.rename(columns={'Scopus_ID3': 'Scopus_ID'})
+    df4 = df4.drop(columns=['Scopus_ID2','Scopus_ID1','Scopus_ID3'])
+    df4 = df4.rename(columns={'Scopus_ID4': 'Scopus_ID'})
+    
+    df_new = pd.merge(df1, df2,  how='outer', left_on=['Scopus_ID','Cognome','Nome'], right_on = ['Scopus_ID','Cognome','Nome'], indicator=False)
+    df_new = pd.merge(df_new, df3,  how='outer', left_on=['Scopus_ID','Cognome','Nome'], right_on = ['Scopus_ID','Cognome','Nome'], indicator=False)
+    df_new = pd.merge(df_new, df4,  how='outer', left_on=['Scopus_ID','Cognome','Nome'], right_on = ['Scopus_ID','Cognome','Nome'], indicator=False)
+    
+    df_new.dropna(inplace=True)
+    return df_new    
+    
 # WARNING: modify the following path to get the Ricercatori.xlsx file from your path
 path="Ricercatori.xlsx"
+# WARNING: modify the following path to get the Articoli_recenti.xlsx file from your path
+path_recent="Articoli_recenti.xlsx"
+#Change here if you want to change the path for saving the report
+path_save='Pubblicazioni_Recenti'
 
 # Read the CSV file from a URL into a DataFrame
 df = pd.read_excel(path,dtype={"Scopus_ID1": str,"Scopus_ID2": str,"Scopus_ID3": str,"Scopus_ID4": str})
@@ -172,5 +253,10 @@ for ii in range(0,len(df_new)):
     df_Articles = df_Articles.reset_index(drop=True)
 
 
-Article_xlsx(df_Articles)
+Artdf=Article_xlsx(df_Articles)
 Researchers_metrics(df_Articles,df)
+
+generate_report='yes'
+if generate_report=='yes':
+    Genera_Report(path_recent,Artdf,path,path_save)
+    
