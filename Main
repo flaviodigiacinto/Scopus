@@ -107,7 +107,7 @@ def Genera_Report(path_recent,Artdf,pathn,path_save):
     df_res=Researchers_list(pathn)
     df = pd.read_excel(path_recent+'Articoli_recenti.xlsx')
     today = datetime.today().date()
-    recent=today-timedelta(days=40)
+    recent=today-timedelta(days=30)
     recent2=today+timedelta(days=40)
     Artdf[["Date"]] = Artdf[["Date"]].apply(pd.to_datetime)
     df_filtered=df[(df['Date'].dt.date >= recent)]
@@ -148,6 +148,64 @@ def Genera_Report(path_recent,Artdf,pathn,path_save):
     
     document.save(path_save+'Pubblicazioni_Recenti.docx') 
     convert(path_save+'Pubblicazioni_Recenti.docx', path_save+"Pubblicazioni_Recenti.pdf")
+
+def Genera_Report_xSSD(path_recent,Artdf,pathn,path_save):       
+    df_res=Researchers_list(pathn)
+    df = pd.read_excel(path_recent+'Articoli_recenti.xlsx')
+    today = datetime.today().date()
+    recent=today-timedelta(days=30)
+    recent2=today+timedelta(days=40)
+    Artdf[["Date"]] = Artdf[["Date"]].apply(pd.to_datetime)
+    df_filtered=df[(df['Date'].dt.date >= recent)]
+    df_filtered2=Artdf[(Artdf['Date'].dt.date>=recent)]
+    df_filtered2=df_filtered2[(df_filtered2['Date'].dt.date<=recent2)]
+    df_filtered2.to_excel(path_save+'Articoli_recenti.xlsx', sheet_name='Sheet1', index=False)
+    merged_df = pd.merge(df_filtered2, df_filtered[['Articoli']], on='Articoli', how='left', indicator=True)
+    result_df = merged_df[merged_df['_merge'] == 'left_only'].drop(columns='_merge')
+    
+    unique_values = df_res['Descrizione Nuovo Ssd'].unique()
+    
+    document = Document()
+    TestName='Articoli UCSC Recenti - SSD'
+    title=document.add_paragraph()
+    title.add_run(TestName).bold=True
+    
+    document.add_paragraph()
+    
+    for rows in unique_values:
+        df_f = df_res[df_res['Descrizione Nuovo Ssd'] == rows]
+        df_f2 = result_df[result_df['Authors_ID'].str.contains('|'.join(df_f['Scopus_ID'].tolist()))]
+        if df_f2.empty is False:
+            text=rows
+            paragraph = document.add_paragraph()
+            bold_run = paragraph.add_run((text))
+            bold_run.bold = True
+            for index, row in df_f2.iterrows(): 
+                DOIn=row['DOI']
+                title=row['Articoli']        
+                ab = AbstractRetrieval(DOIn, view='FULL')
+                Journal=ab.publicationName
+                text='  - '+ title+', '
+                paragraph = document.add_paragraph()
+                paragraph.add_run(text)
+                bold_run = paragraph.add_run((Journal))
+                bold_run.bold = True
+                #' DOI:'+row['DOI']
+                for Auth in ab.authors:
+                    if (df_f['Scopus_ID'].eq(str(Auth[0]))).any():
+                        paragraph.add_run(', ')
+                        underlined_run = paragraph.add_run((Auth[1]))
+                        underlined_run.underline = True
+                    else:
+                        paragraph.add_run(', '+str(Auth[1]))
+               
+                paragraph.add_run(', '+DOIn)  
+                document.add_paragraph()
+    
+    document.save(path_save+'Pubblicazioni_Recenti_SSD.docx') 
+    convert(path_save+'Pubblicazioni_Recenti_SSD.docx', path_save+"Pubblicazioni_Recenti_SSD.pdf")
+
+
     
 def Researchers_list(pathn):
     df = pd.read_excel(path,dtype={"Scopus_ID1": str,"Scopus_ID2": str,"Scopus_ID3": str,"Scopus_ID4": str})
@@ -157,8 +215,7 @@ def Researchers_list(pathn):
     df4=df.copy()
     
     df_p=df.copy()
-    df_p = df_p.drop(columns=['Qualifica', 'Codice Nuovo Ssd',
-           'Descrizione Nuovo Ssd'])
+    df_p = df_p.drop(columns=['Qualifica', 'Codice Nuovo Ssd'])
     
     df1=df_p.copy()
     df2=df_p.copy()
@@ -174,9 +231,9 @@ def Researchers_list(pathn):
     df4 = df4.drop(columns=['Scopus_ID2','Scopus_ID1','Scopus_ID3'])
     df4 = df4.rename(columns={'Scopus_ID4': 'Scopus_ID'})
     
-    df_new = pd.merge(df1, df2,  how='outer', left_on=['Scopus_ID','Cognome','Nome'], right_on = ['Scopus_ID','Cognome','Nome'], indicator=False)
-    df_new = pd.merge(df_new, df3,  how='outer', left_on=['Scopus_ID','Cognome','Nome'], right_on = ['Scopus_ID','Cognome','Nome'], indicator=False)
-    df_new = pd.merge(df_new, df4,  how='outer', left_on=['Scopus_ID','Cognome','Nome'], right_on = ['Scopus_ID','Cognome','Nome'], indicator=False)
+    df_new = pd.merge(df1, df2,  how='outer', left_on=['Scopus_ID','Cognome','Nome','Descrizione Nuovo Ssd'], right_on = ['Scopus_ID','Cognome','Nome','Descrizione Nuovo Ssd'], indicator=False)
+    df_new = pd.merge(df_new, df3,  how='outer', left_on=['Scopus_ID','Cognome','Nome','Descrizione Nuovo Ssd'], right_on = ['Scopus_ID','Cognome','Nome','Descrizione Nuovo Ssd'], indicator=False)
+    df_new = pd.merge(df_new, df4,  how='outer', left_on=['Scopus_ID','Cognome','Nome','Descrizione Nuovo Ssd'], right_on = ['Scopus_ID','Cognome','Nome','Descrizione Nuovo Ssd'], indicator=False)
     
     df_new.dropna(inplace=True)
     return df_new    
@@ -214,7 +271,6 @@ df_new = pd.merge(df_new, df3,  how='outer', left_on=['Scopus_ID','Cognome','Nom
 df_new = pd.merge(df_new, df4,  how='outer', left_on=['Scopus_ID','Cognome','Nome'], right_on = ['Scopus_ID','Cognome','Nome'], indicator=False)
 
 df_new.dropna(inplace=True)
-
 
 conta=0
 df_new['Scopus_ID']=df_new['Scopus_ID'].apply(int)
@@ -258,10 +314,15 @@ for ii in range(0,len(df_new)):
     else:
         print(num+' has no documents')
 
+
 Artdf=Article_xlsx(df_Articles,path_save)
 Researchers_metrics(df_Articles,df,path_save)
 
 generate_report='yes'
+generate_report_xSSD='yes'
+
 if generate_report=='yes':
     Genera_Report(path_recent,Artdf,path,path_save)
+if generate_report_xSSD=='yes':
+    Genera_Report_xSSD(path_recent,Artdf,path,path_save)
     
