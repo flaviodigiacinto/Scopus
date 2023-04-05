@@ -107,9 +107,12 @@ def Genera_Report(path_recent,Artdf,pathn,path_save):
     df_res=Researchers_list(pathn)
     df = pd.read_excel(path_recent+'Articoli_recenti.xlsx')
     today = datetime.today().date()
-    recent=today-timedelta(days=90)
+    recent=today-timedelta(days=40)
+    recent2=today+timedelta(days=40)
+    Artdf[["Date"]] = Artdf[["Date"]].apply(pd.to_datetime)
     df_filtered=df[(df['Date'].dt.date >= recent)]
     df_filtered2=Artdf[(Artdf['Date'].dt.date>=recent)]
+    df_filtered2=df_filtered2[(df_filtered2['Date'].dt.date<=recent2)]
     df_filtered2.to_excel(path_save+'Articoli_recenti.xlsx', sheet_name='Sheet1', index=False)
     merged_df = pd.merge(df_filtered2, df_filtered[['Articoli']], on='Articoli', how='left', indicator=True)
     result_df = merged_df[merged_df['_merge'] == 'left_only'].drop(columns='_merge')
@@ -181,9 +184,9 @@ def Researchers_list(pathn):
 # WARNING: modify the following path to get the Ricercatori.xlsx file from your path
 path="Ricercatori.xlsx"
 # WARNING: modify the following path to get the Articoli_recenti.xlsx file from your path
-path_recent="C:/Users/digia/OneDrive/Desktop/Codes/Python_Scripts/Scopus/Report/Report_21032023/"
+path_recent="C:/Users/digia/OneDrive/Desktop/Codes/Python_Scripts/Scopus/Report/Report_29032023/"
 #Change here if you want to change the path for saving the report
-path_save='C:/Users/digia/OneDrive/Desktop/Codes/Python_Scripts/Scopus/Report/Report_29032023/'
+path_save='C:/Users/digia/OneDrive/Desktop/Codes/Python_Scripts/Scopus/Report/Report_05042023/'
 
 # Read the CSV file from a URL into a DataFrame
 df = pd.read_excel(path,dtype={"Scopus_ID1": str,"Scopus_ID2": str,"Scopus_ID3": str,"Scopus_ID4": str})
@@ -234,24 +237,26 @@ for ii in range(0,len(df_new)):
     Author=[]
     Citations=[]
     au = AuthorRetrieval(num)
-    documents=au.get_documents()
-    for i in range (0,len(documents)):
-        Date.append(datetime.strptime(documents[i][16], '%Y-%m-%d'))
-        Articoli.append(documents[i][4])
-        DOIn.append(documents[i][1])
-        Journal.append(documents[i][18])
-        Authors.append(documents[i][13])
-        Authors_ID.append(documents[i][14])
-        Author.append(num)
-        Citations.append(documents[i][29])
+    documents=au.get_documents(refresh=True)
+    if documents is not None:
+        for i in range (0,len(documents)):
+            Date.append(datetime.strptime(documents[i][16], '%Y-%m-%d'))
+            Articoli.append(documents[i][4])
+            DOIn.append(documents[i][1])
+            Journal.append(documents[i][18])
+            Authors.append(documents[i][13])
+            Authors_ID.append(documents[i][14])
+            Author.append(num)
+            Citations.append(documents[i][29])
+           
+        data = {'Date': Date, 'Articoli': Articoli, 'DOI': DOIn, 'Journal':Journal,
+                'Authors':Authors,'Authors_ID':Authors_ID,'Author':Author,'Citations':Citations}
        
-    data = {'Date': Date, 'Articoli': Articoli, 'DOI': DOIn, 'Journal':Journal,
-            'Authors':Authors,'Authors_ID':Authors_ID,'Author':Author,'Citations':Citations}
-   
-    df_Author = pd.DataFrame(data)
-    df_Articles=pd.concat([df_Articles, df_Author])
-    df_Articles = df_Articles.reset_index(drop=True)
-
+        df_Author = pd.DataFrame(data)
+        df_Articles=pd.concat([df_Articles, df_Author])
+        df_Articles = df_Articles.reset_index(drop=True)
+    else:
+        print(num+' has no documents')
 
 Artdf=Article_xlsx(df_Articles,path_save)
 Researchers_metrics(df_Articles,df,path_save)
