@@ -326,3 +326,5 @@ if generate_report=='yes':
 if generate_report_xSSD=='yes':
     Genera_Report_xSSD(path_recent,Artdf,path,path_save)
     
+
+    
