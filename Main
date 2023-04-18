@@ -18,10 +18,11 @@ def Article_xlsx(df_art,path_save):
    
     # Keep only the row with the maximum value in Citations colummn for each group of duplicates
     df_art['Citations'] = pd.to_numeric(df_art['Citations'])
-    result = df_art.loc[df_art.groupby(by='id')['Citations'].idxmax()]
-   
+    result = df_art.sort_values('Citations', ascending=False)
+    result = result.groupby('id').agg({'Citations': 'first', 'Author': lambda x: ';'.join(map(str, x)), **{col: 'first' for col in result.columns if col not in ['id', 'Citations', 'Author']}}).reset_index()
     # Drop the 'id' column
-    result = result.drop(columns=['id','Author'])
+    result = result.drop(columns=['id'])
+    result = result.rename(columns={'Author': 'Internal_Authors_IDs'})
     result = result.reset_index(drop=True)
    
     # WARNING: modify the following path to save the file outside your working dir
@@ -37,13 +38,15 @@ def Researchers_metrics(df_art,df,path_save):
     df_art['DOI']=df_art['DOI'].fillna('')
     df_art['id'] = df_art.apply(lambda x: f"{x['Articoli']}_{x['DOI']}", axis=1)
    
-    # Keep only the row with the maximum value in col3 for each group of duplicates
+    # Keep only the row with the maximum value in Citations colummn for each group of duplicates
     df_art['Citations'] = pd.to_numeric(df_art['Citations'])
-    result = df_art.loc[df_art.groupby(by='id')['Citations'].idxmax()]
-   
+    result = df_art.sort_values('Citations', ascending=False)
+    result = result.groupby('id').agg({'Citations': 'first', 'Author': lambda x: ';'.join(map(str, x)), **{col: 'first' for col in result.columns if col not in ['id', 'Citations', 'Author']}}).reset_index()
     # Drop the 'id' column
-    result = result.drop(columns=['id','Author'])
+    result = result.drop(columns=['id'])
+    result = result.rename(columns={'Author': 'Internal_Authors_IDs'})
     result = result.reset_index(drop=True)
+    
     result['Article_ID']=range(len(result))
     result['Whole_Art_inf']=result['Articoli']+",_"+result['Journal']+",_DOI:"+result['DOI']
    
@@ -72,9 +75,10 @@ def Researchers_metrics(df_art,df,path_save):
     df_new = pd.merge(df_new, df4,  how='outer', left_on=['Scopus_ID','Cognome','Nome'], right_on = ['Scopus_ID','Cognome','Nome'], indicator=False)
    
     df_new.dropna(inplace=True)
-    df_split = result.assign(Authors_ID=result['Authors_ID'].str.split(';'))
-    new_df = df_split.explode('Authors_ID')
-    new_df_filtered = new_df[new_df['Authors_ID'].isin(df_new['Scopus_ID'])]
+    df_split=result.copy()
+    df_split['Internal_Authors_IDs'] = df_split['Internal_Authors_IDs'].str.split(';')
+    new_df_filtered = df_split.explode('Internal_Authors_IDs')
+
     df_IDs=df.copy()
     df_IDs = df_IDs.drop(columns=['Cognome','Nome'])
     df['Citations'] = pd.Series(dtype='int')
@@ -90,7 +94,7 @@ def Researchers_metrics(df_art,df,path_save):
 
     for i in range (0,len(df_IDs)):
         row_to_copy = df_IDs.loc[i]
-        mask = new_df_filtered['Authors_ID'].isin(row_to_copy)
+        mask = new_df_filtered['Internal_Authors_IDs'].isin(row_to_copy)
         df_filtered = new_df_filtered[mask]
         df.loc[i,'Citations']=df_filtered.Citations.sum()
         df.loc[i,'Articles']=len(df_filtered)
@@ -107,8 +111,8 @@ def Genera_Report(path_recent,Artdf,pathn,path_save):
     df_res=Researchers_list(pathn)
     df = pd.read_excel(path_recent+'Articoli_recenti.xlsx')
     today = datetime.today().date()
-    recent=today-timedelta(days=30)
-    recent2=today+timedelta(days=40)
+    recent=today-timedelta(days=47)
+    recent2=today+timedelta(days=50)
     Artdf[["Date"]] = Artdf[["Date"]].apply(pd.to_datetime)
     df_filtered=df[(df['Date'].dt.date >= recent)]
     df_filtered2=Artdf[(Artdf['Date'].dt.date>=recent)]
@@ -128,7 +132,7 @@ def Genera_Report(path_recent,Artdf,pathn,path_save):
         DOIn=row['DOI']
         title=row['Articoli']        
         ab = AbstractRetrieval(DOIn, view='FULL')
-        Journal=ab.publicationName
+        Journal=row['Journal'] 
         text='  - '+ title+', '
         paragraph = document.add_paragraph()
         paragraph.add_run(text)
@@ -153,8 +157,8 @@ def Genera_Report_xSSD(path_recent,Artdf,pathn,path_save):
     df_res=Researchers_list(pathn)
     df = pd.read_excel(path_recent+'Articoli_recenti.xlsx')
     today = datetime.today().date()
-    recent=today-timedelta(days=30)
-    recent2=today+timedelta(days=40)
+    recent=today-timedelta(days=47)
+    recent2=today+timedelta(days=50)
     Artdf[["Date"]] = Artdf[["Date"]].apply(pd.to_datetime)
     df_filtered=df[(df['Date'].dt.date >= recent)]
     df_filtered2=Artdf[(Artdf['Date'].dt.date>=recent)]
@@ -174,7 +178,7 @@ def Genera_Report_xSSD(path_recent,Artdf,pathn,path_save):
     
     for rows in unique_values:
         df_f = df_res[df_res['Descrizione Nuovo Ssd'] == rows]
-        df_f2 = result_df[result_df['Authors_ID'].str.contains('|'.join(df_f['Scopus_ID'].tolist()))]
+        df_f2 = result_df[result_df['Internal_Authors_IDs'].str.contains('|'.join(df_f['Scopus_ID'].tolist()))]
         if df_f2.empty is False:
             text=rows
             paragraph = document.add_paragraph()
@@ -241,9 +245,9 @@ def Researchers_list(pathn):
 # WARNING: modify the following path to get the Ricercatori.xlsx file from your path
 path="Ricercatori.xlsx"
 # WARNING: modify the following path to get the Articoli_recenti.xlsx file from your path
-path_recent="C:/Users/digia/OneDrive/Desktop/Codes/Python_Scripts/Scopus/Report/Report_29032023/"
+path_recent="C:/Users/digia/OneDrive/Desktop/Codes/Python_Scripts/Scopus/Report/Report_20230411/"
 #Change here if you want to change the path for saving the report
-path_save='C:/Users/digia/OneDrive/Desktop/Codes/Python_Scripts/Scopus/Report/Report_05042023/'
+path_save='C:/Users/digia/OneDrive/Desktop/Codes/Python_Scripts/Scopus/Report/Report_20230418/'
 
 # Read the CSV file from a URL into a DataFrame
 df = pd.read_excel(path,dtype={"Scopus_ID1": str,"Scopus_ID2": str,"Scopus_ID3": str,"Scopus_ID4": str})
@@ -279,7 +283,7 @@ df_new['Scopus_ID']=df_new['Scopus_ID'].apply(str)
 df_Articles = pd.DataFrame(columns = ['Date', 'Articoli', 'DOI','Journal','Authors','Authors_ID','Author','Citations'])
 df_new = df_new.reset_index(drop=True)
 
-for ii in range(0,len(df_new)):
+for ii in range(0,412): #len(df_new)):
     num=df_new['Scopus_ID'][ii]
     print(num)
     conta=conta+1
@@ -313,18 +317,19 @@ for ii in range(0,len(df_new)):
         df_Articles = df_Articles.reset_index(drop=True)
     else:
         print(num+' has no documents')
-
+# df_0 = pd.read_excel('Articooli.xlsx')
+# df_1 = pd.read_excel('Articooli2.xlsx')
+# df_Articles=pd.concat([df_0, df_1])
+# df_Articles = df_Articles.reset_index(drop=True)
 
 Artdf=Article_xlsx(df_Articles,path_save)
 Researchers_metrics(df_Articles,df,path_save)
 
-generate_report='yes'
+generate_report='no'
 generate_report_xSSD='yes'
 
 if generate_report=='yes':
     Genera_Report(path_recent,Artdf,path,path_save)
 if generate_report_xSSD=='yes':
     Genera_Report_xSSD(path_recent,Artdf,path,path_save)
-    
-
     
