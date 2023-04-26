@@ -5,7 +5,6 @@ This code allow to get information about the articles published by the faculty s
 3. You can use the code named main.py to obtain the data for the UCSC faculty members and create an excel file which contains the basic metrics for the peoples in Ricercatori.xlsx file as well as create another excel file which contains a list of all the articles published by the samegroup of researchers 
 4. You can generate a pdf with a report of the new publications from the members of the faculty, updating only the new publications which didn't appear before. The program read the publications which were already shared using the file "Articoli_recenti.xlsx" so this MUST BE UPDATED (loading a new version on github) each time a new report is sent. 
 
-The only part of the code which must be modified are the three lines with the paths:
-line 182: where the file "Ricercatori.xlsx" is located on your local machine
-line 184: where the file "Articoli_recenti.xlsx" is located on your local machine
-line 186. where you want to save the pdf report (if not modified it is saved within the current folder)
+The only part of the code which must be modified are the two lines with the paths where to get the last report (248) and where to save the new one (250).
+
+Moreover, line 253, you can add a path to the read command if the list of the researchers are not in the same folder of the script.
