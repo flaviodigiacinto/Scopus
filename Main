@@ -245,9 +245,9 @@ def Researchers_list(pathn):
 # WARNING: modify the following path to get the Ricercatori.xlsx file from your path
 path="Ricercatori.xlsx"
 # WARNING: modify the following path to get the Articoli_recenti.xlsx file from your path
-path_recent="C:/Users/digia/OneDrive/Desktop/Codes/Python_Scripts/Scopus/Report/Report_20230411/"
+path_recent="C:/Users/digia/OneDrive/Desktop/Codes/Python_Scripts/Scopus/Report/Report_20230418/"
 #Change here if you want to change the path for saving the report
-path_save='C:/Users/digia/OneDrive/Desktop/Codes/Python_Scripts/Scopus/Report/Report_20230418/'
+path_save='C:/Users/digia/OneDrive/Desktop/Codes/Python_Scripts/Scopus/Report/Report_20230426/'
 
 # Read the CSV file from a URL into a DataFrame
 df = pd.read_excel(path,dtype={"Scopus_ID1": str,"Scopus_ID2": str,"Scopus_ID3": str,"Scopus_ID4": str})
@@ -283,7 +283,7 @@ df_new['Scopus_ID']=df_new['Scopus_ID'].apply(str)
 df_Articles = pd.DataFrame(columns = ['Date', 'Articoli', 'DOI','Journal','Authors','Authors_ID','Author','Citations'])
 df_new = df_new.reset_index(drop=True)
 
-for ii in range(0,412): #len(df_new)):
+for ii in range(0,len(df_new)):
     num=df_new['Scopus_ID'][ii]
     print(num)
     conta=conta+1
